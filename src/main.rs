@@ -1,4 +1,4 @@
-use std::{net::{TcpStream}, io::{BufReader, BufWriter, BufRead, Write}};
+use std::{net::{TcpStream}, io::{BufReader, BufWriter, BufRead, Write, Read}, str::from_utf8};
 use std::{net::{TcpListener}};
 
 fn main() -> std::io::Result<()> {
@@ -23,16 +23,35 @@ fn handle_client(stream: TcpStream) {
 }
 
 fn read_from_tcp (reader: &mut BufReader<&TcpStream>) -> Vec<String> {
-    let mut msgs = Vec::new();
+    let mut header = Vec::new();
+    let mut content_length = 0;
+
     loop {
-        let mut msg = String::new();
-        reader.read_line(&mut msg).expect("Failed to read");
-        if reader.buffer().is_empty() || msg.is_empty() {
+        let mut line = String::new();
+        reader.read_line(&mut line).expect("Failed to read");
+        if reader.buffer().is_empty() || line.is_empty() {
             break
         }
-        msgs.push(msg);
+        if line.starts_with("Content-Length") {
+            content_length = line.split(':').collect::<Vec<&str>>()[1].trim().parse().unwrap();
+        }
+        header.push(line);
     }
-    return msgs;
+
+    println!("{}", content_length);
+    println!("{:?}", header);
+
+    let mut body = String::new();
+
+    if 0 < content_length {
+        let mut c = Vec::with_capacity(content_length);
+        reader.read(&mut c);
+        body = String::from_utf8(c).unwrap();
+    }
+
+    println!("{}", body);
+
+    return header
 }
 
 fn write_to_tcp (writer: &mut BufWriter<&TcpStream>, data: &str) {
